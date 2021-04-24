@@ -8,8 +8,8 @@ var endTime;
 var startTime;
 var heat;
 var dotAlpha;
-var firstTimestamp = 1472401617194;
-var lastTimestamp = 1619103137286;
+var firstTimestamp;
+var lastTimestamp;
 
 const mappa = new Mappa('Leaflet');
 
@@ -29,10 +29,15 @@ function setup() {
   canvas = createCanvas(window.innerWidth, window.innerHeight);
   testMap = mappa.tileMap(options);
   testMap.overlay(canvas);
+
+  firstTimestamp = data.locations[0].timestampMs;
+  lastTimestamp = data.locations[data.locations.length-1].timestampMs;
+
   endTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotSize = createSlider(5, 20, 10, 0.01);
   startTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotAlpha = createSlider(50, 255, 255, 0.1)
+
   testMap.onChange(updateMap);
   endTime.changed(updateMap);
   startTime.changed(updateMap);
