@@ -8,6 +8,8 @@ var endTime;
 var startTime;
 var heat;
 var dotAlpha;
+var firstTimestamp = 1472401617194;
+var lastTimestamp = 1619103137286;
 
 const mappa = new Mappa('Leaflet');
 
@@ -27,15 +29,15 @@ function setup() {
   canvas = createCanvas(window.innerWidth, window.innerHeight);
   testMap = mappa.tileMap(options);
   testMap.overlay(canvas);
-  endTime = createSlider(1472401617194, 1619103137286, 1472401617194, 86400000).size(1500);
+  endTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotSize = createSlider(5, 20, 10, 0.01);
-  startTime = createSlider(1472401617194, 1619103137286, 1472401617194, 86400000).size(1500);
+  startTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotAlpha = createSlider(50, 255, 255, 0.1)
-  testMap.onChange(drawshit);
-  endTime.changed(drawshit);
-  startTime.changed(drawshit);
-  dotSize.changed(drawshit);
-  dotAlpha.changed(drawshit);
+  testMap.onChange(updateMap);
+  endTime.changed(updateMap);
+  startTime.changed(updateMap);
+  dotSize.changed(updateMap);
+  dotAlpha.changed(updateMap);
 
 
   for (var i in data.locations) {
@@ -50,7 +52,7 @@ function setup() {
   }
 }
 
-function drawshit() {
+function updateMap() {
   clear();
   dots = [[]];
   for (i in data.locations) {
@@ -61,6 +63,7 @@ function drawshit() {
           heat = map(data.locations[i].timestampMs, startTime.value(), endTime.value(), 0, 220);
           fill(heat, 70, (220 - heat), dotAlpha.value());
           ellipse(pix.x, pix.y, dotSize.value());
+          noStroke();
           dots.push([pix.x, pix.y]);
         }
       }
@@ -72,12 +75,9 @@ function drawshit() {
   var endFormatted = new Date(endTime.value());
   var startDate = new Date(startFormatted);
   var endDate = new Date(endFormatted);
-  var options = {
-    year: 'numeric', month: 'numeric', day: 'numeric',
-  };
 
-  var startResult = startDate.toLocaleDateString('fi', options);
-  var endResult = endDate.toLocaleDateString('fi', options);
+  var startResult = startDate.toLocaleDateString('fi',);
+  var endResult = endDate.toLocaleDateString('fi',);
   textSize(32);
   fill(0, 0, 0, 120);
   text(startResult + " - " + endResult, 100, 30);
