@@ -1,8 +1,11 @@
+p5.disableFriendlyErrors = true;
+
 let myMap;
 let canvas;
 let data;
 let latitudes = [];
 let longitudes = [];
+let times = [];
 var dotSize;
 var endTime;
 var startTime;
@@ -31,7 +34,7 @@ function setup() {
   testMap.overlay(canvas);
 
   firstTimestamp = data.locations[0].timestampMs;
-  lastTimestamp = data.locations[data.locations.length-1].timestampMs;
+  lastTimestamp = data.locations[data.locations.length - 1].timestampMs;
 
   endTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotSize = createSlider(5, 20, 10, 0.01);
@@ -52,16 +55,18 @@ function setup() {
     lon = data.locations[i].longitudeE7;
     lon = lon.toString();
     lon = lon.slice(0, 2) + "." + lon.slice(2, 8);
+    time = parseInt(data.locations[i].timestampMs);
     latitudes.push(lat);
     longitudes.push(lon);
+    times.push(time);
   }
 }
 
 function updateMap() {
   clear();
   dots = [[]];
-  for (i in data.locations) {
-    if (data.locations[i].timestampMs <= endTime.value() && data.locations[i].timestampMs >= startTime.value()) {
+  for (i in times) {
+    if (times[i] > startTime.value() && times[i] < endTime.value()) {
       const pix = testMap.latLngToPixel(latitudes[i], longitudes[i]);
       if (pix.x > 0 && pix.x < windowWidth && pix.y > 0 && pix.y < windowHeight) {
         if (!inArray(dots, [pix.x, pix.y])) {
@@ -74,7 +79,6 @@ function updateMap() {
       }
     }
   }
-
 
   var startFormatted = new Date(startTime.value());
   var endFormatted = new Date(endTime.value());
