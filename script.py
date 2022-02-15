@@ -25,6 +25,7 @@ import math
 from argparse import ArgumentParser, ArgumentTypeError
 from datetime import datetime
 from datetime import timedelta
+import dateutil.parser
 
 try:
     import ijson
@@ -152,8 +153,13 @@ def _write_location(output, format, location, separator, first, last_location):
         if not first:
             output.write(",")
 
+        time = location["timestamp"]
+        parsed_time = dateutil.parser.parse(time)
+        timestamp = parsed_time.timestamp() * 1000
+        temp = str(int(timestamp))
+
         item = {
-            "timestampMs": location["timestampMs"],
+            "timestampMs": temp,
             "latitudeE7": location["latitudeE7"],
             "longitudeE7": location["longitudeE7"]
         }
@@ -383,23 +389,15 @@ def convert(locations, output, format="kml",
     added = 0
     print("Progress:")
     for item in locations:
-        if "longitudeE7" not in item or "latitudeE7" not in item or "timestampMs" not in item:
+        if "longitudeE7" not in item or "latitudeE7" not in item or "timestamp" not in item:
             continue
 
-        time = datetime.utcfromtimestamp(int(item["timestampMs"]) / 1000)
-        print("\r%s / Locations written: %s" % (time.strftime("%Y-%m-%d %H:%M"), added), end="")
+        # time = datetime.utcfromtimestamp(int(item["timestampMs"]) / 1000)
+        print("\rLocations written: %s" % (added), end="")
 
         if accuracy is not None and "accuracy" in item and item["accuracy"] > accuracy:
             continue
 
-        if start_date is not None and start_date > time:
-            continue
-        if end_date is not None and end_date < time:
-            if chronological:
-                # If locations are sorted and we are past the enddate there are no further locations to be expected
-                # This could probably be the default behavior
-                break
-            continue
 
         if polygon and not _check_point(polygon, item["latitudeE7"], item["longitudeE7"]):
             continue
