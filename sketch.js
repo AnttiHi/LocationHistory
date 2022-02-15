@@ -14,19 +14,25 @@ var heat;
 var dotAlpha;
 var firstTimestamp;
 var lastTimestamp;
+//mapstyles:
+//http://{s}.tile.osm.org/{z}/{x}/{y}.png
+//https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png
+//https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png
+//http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
 var mapstyle = "http://{s}.tile.osm.org/{z}/{x}/{y}.png";
 var dragged = false;
 var accuracy;
 var opacity;
 var heatOn = true;
 var play;
+var pause;
 var playMode = false;
 var timePoint = 0;
-var grain;
+var paused = false;
 var startTimeIndex;
 var prev = [];
 var timePoints = [];
-var triple = [];
+var minFade;
 
 const mappa = new Mappa('Leaflet');
 
@@ -45,6 +51,7 @@ function preload() {
 
 
 function setup() {
+  //frameRate(60);
   canvas = createCanvas(window.innerWidth, window.innerHeight);
   drawMap();
 
@@ -54,24 +61,22 @@ function setup() {
   endTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
   dotSize = createSlider(3, 20, 6, 0.01);
   startTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
-  dotAlpha = createSlider(50, 255, 255, 0.1);
-  accuracy = createSlider(1, 20, 1, 1);
   opacity = createSlider(0, 255, 0, 1);
+  minFade = createSlider(0, 255, 255, 1);
   play = createButton('PLAY');
-  grain = createSlider(1, 100, 1, 1);
+  pause = createButton('PAUSE');
 
   testMap.onChange(updateMap);
   endTime.changed(updateMap);
   startTime.changed(updateMap);
   dotSize.changed(updateMap);
-  dotAlpha.changed(updateMap);
-  accuracy.changed(updateMap);
   play.mousePressed(changeMode);
+  pause.mousePressed(pauseSwitch);
 
-  sel = createSelect();
-  sel.option('Street map');
-  sel.option('Satellite');
-  sel.changed(chooseMap);
+  // sel = createSelect();
+  // sel.option('Street map');
+  // sel.option('Satellite');
+  // sel.changed(chooseMap);
 
 
   for (var i in data.locations) {
@@ -85,11 +90,13 @@ function setup() {
     latitudes.push(lat);
     longitudes.push(lon);
     times.push(time);
-    triple.push({time, lat, lon});
   }
 }
 
 function updateMap() {
+  if (playMode) {
+    return;
+  }
   if (dragged) {
     clear();
     background(255, opacity.value());
@@ -97,25 +104,19 @@ function updateMap() {
   } else {
     clear();
     background(255, opacity.value());
-    dots = [[]];
     if (!playMode) {
       for (i in times) {
-        if (i % accuracy.value() == 0) {
-          if (times[i] > startTime.value() && times[i] < endTime.value()) {
-            const pix = testMap.latLngToPixel(latitudes[i], longitudes[i]);
-            if (pix.x > 0 && pix.x < windowWidth && pix.y > 0 && pix.y < windowHeight) {
-              //if (!inArray(dots, [pix.x, pix.y])) {
-              if (heatOn) {
-                heat = map(data.locations[i].timestampMs, startTime.value(), endTime.value(), 0, 220);
-                fill(heat, 70, (220 - heat), dotAlpha.value());
-              } else {
-                fill(255, 0, 255, dotAlpha.value());
-              }
-              ellipse(pix.x, pix.y, dotSize.value());
-              noStroke();
-              //dots.push([pix.x, pix.y]);
+        if (times[i] > startTime.value() && times[i] < endTime.value()) {
+          const pix = testMap.latLngToPixel(latitudes[i], longitudes[i]);
+          if (pix.x > 0 && pix.x < windowWidth && pix.y > 0 && pix.y < windowHeight) {
+            if (heatOn) {
+              heat = map(data.locations[i].timestampMs, startTime.value(), endTime.value(), 0, 220);
+              fill(heat, 70, (220 - heat), 255);
+            } else {
+              fill(255, 0, 255, 255);
             }
-            //}
+            ellipse(pix.x, pix.y, dotSize.value());
+            noStroke();
           }
         }
       }
@@ -177,44 +178,59 @@ function changeMode() {
     }
     timePoint = startTimeIndex;
     playMode = true;
+    paused = false;
     prev = [0, 0];
     timePoints = [timePoint];
   }
 }
 
+function pauseSwitch() {
+  if (paused) {
+    paused = false;
+  } else {
+    paused = true;
+  }
+}
+
 function draw() {
   if (playMode) {
-    clear();
-    background(255, opacity.value());
-    for (let x in timePoints) {
-      dot = timePoints[x];
-      if (times[dot] < endTime.value()) {
-        const pix = testMap.latLngToPixel(latitudes[dot], longitudes[dot]);
-          if (pix.x - prev[0] != 0 && pix.y - prev[1] != 0) {
-            if (heatOn) {
-              heat = map(x, 0, (timePoints.length - 1), 0, 220);
-              fill(heat, 70, (220 - heat), Math.max(heat, 100));
-            } else {
-              fill(255, 0, 255, dotAlpha.value());
-            }
-            ellipse(pix.x, pix.y, dotSize.value());
-            noStroke();
-            prev[0] = pix.x;
-            prev[1] = pix.y;
-          }
-      } else {
-        playMode = false;
+    drawPlay();
+  } 
+}
+
+function drawPlay() {
+  clear();
+  background(255, opacity.value());
+  for (let x in timePoints) {
+    dot = timePoints[x];
+    if (times[dot] > startTime.value() && times[dot] < endTime.value()) {
+      const pix = testMap.latLngToPixel(latitudes[dot], longitudes[dot]);
+      if (pix.x - prev[0] != 0 && pix.y - prev[1] != 0) {
+        if (heatOn) {
+          heat = map(x, 0, (timePoints.length - 1), 0, 220);
+          fill(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
+        } else {
+          fill(255, 0, 255, 255);
+        }
+        ellipse(pix.x, pix.y, dotSize.value());
+        noStroke();
+        prev[0] = pix.x;
+        prev[1] = pix.y;
       }
+    } else {
+      paused = true;
     }
-    timePoint += grain.value();
-    timePoints.push(timePoint);
-
-    var currentFormatted = new Date(times[timePoint]);
-    var currentDate = new Date(currentFormatted);
-
-    var currentResult = currentDate.toLocaleString('fi');
-    textSize(32);
-    fill(0, 0, 0, 120);
-    text(currentResult, 100, 30);
   }
+  if (!paused) {
+    timePoint += 1;
+    timePoints.push(timePoint);
+  }
+
+  var currentFormatted = new Date(times[timePoint]);
+  var currentDate = new Date(currentFormatted);
+
+  var currentResult = currentDate.toLocaleString('fi');
+  textSize(32);
+  fill(0, 0, 0, 120);
+  text(currentResult, 100, 30);
 }
