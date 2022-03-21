@@ -161,7 +161,8 @@ def _write_location(output, format, location, separator, first, last_location):
         item = {
             "timestampMs": temp,
             "latitudeE7": location["latitudeE7"],
-            "longitudeE7": location["longitudeE7"]
+            "longitudeE7": location["longitudeE7"],
+            "Accuracy": location["accuracy"]
         }
         output.write(json.dumps(item, separators=(',', ':')))
         return
@@ -395,7 +396,7 @@ def convert(locations, output, format="kml",
         # time = datetime.utcfromtimestamp(int(item["timestampMs"]) / 1000)
         print("\rLocations written: %s" % (added), end="")
 
-        if accuracy is not None and "accuracy" in item and item["accuracy"] > accuracy:
+        if "accuracy" not in item:
             continue
 
 
