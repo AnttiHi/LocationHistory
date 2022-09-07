@@ -27,6 +27,8 @@ from datetime import datetime
 from datetime import timedelta
 import dateutil.parser
 
+print('Starting...')
+
 try:
     import ijson
 except ImportError:
@@ -576,7 +578,6 @@ def main():
         polygon=polygon,
         chronological=args.chronological
     )
-    input("wait")
     f_out.close()
 
 

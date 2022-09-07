@@ -20,7 +20,7 @@ var lastTimestamp;
 //https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png
 //https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png
 //http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
-var mapstyle = "https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png";
+var mapstyle = "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
 var dragged = false;
 var accuracy;
 var opacity;
@@ -35,6 +35,9 @@ var prev = [];
 var timePoints = [];
 var minFade;
 var accuracy;
+var lineButton;
+var lineMode = false;
+var tolerance;
 
 const mappa = new Mappa('Leaflet');
 
@@ -53,6 +56,24 @@ function preload() {
 
 
 function setup() {
+  var startMs = 0;
+  var endMs = 0;
+
+  $('input[name="datetimes"]').daterangepicker({
+    startDate: moment().startOf('hour'),
+    endDate: moment().startOf('hour').add(32, 'hour'),
+    locale: {
+      format: 'DD/MM/YY'
+    }
+  });
+  $('#daterange').on('apply.daterangepicker', function () {
+    var start = ($('#daterange').val().slice(0, 8));
+    var end = ($('#daterange').val().slice(11));
+    startTime = (moment(start, 'DD/MM/YY').valueOf());
+    endTime = (moment(end, 'DD/MM/YY').valueOf());
+    update();
+  });
+
   //frameRate(60);
   canvas = createCanvas(window.innerWidth, window.innerHeight);
   drawMap();
@@ -60,22 +81,23 @@ function setup() {
   firstTimestamp = data.locations[0].timestampMs;
   lastTimestamp = data.locations[data.locations.length - 1].timestampMs;
 
-  endTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
-  dotSize = createSlider(2, 20, 2, 0.01);
+  endTime = endMs;
+  dotSize = createSlider(1, 20, 2, 0.01);
   opacity = createSlider(0, 255, 0, 1);
-  startTime = createSlider(firstTimestamp, lastTimestamp, firstTimestamp, 3600000).size(1000);
+  startTime = startMs;
   minFade = createSlider(0, 255, 255, 1);
   accuracy = createSlider(20, 1000, 10000, 20);
   play = createButton('PLAY');
   pause = createButton('PAUSE');
+  lineButton = createButton('MODE');
+  tolerance = createSlider(1, 200, 200, 1);
 
-  testMap.onChange(updateMap);
-  endTime.changed(updateMap);
-  startTime.changed(updateMap);
-  dotSize.changed(updateMap);
+  testMap.onChange(update);
+  dotSize.changed(update);
   play.mousePressed(changeMode);
   pause.mousePressed(pauseSwitch);
-  accuracy.changed(updateMap);
+  accuracy.changed(update);
+  lineButton.mousePressed(lineSwitch);
 
   // sel = createSelect();
   // sel.option('Street map');
@@ -100,7 +122,7 @@ function setup() {
 }
 
 function updateMap() {
-  if (playMode) {
+  if (playMode || lineMode) {
     return;
   }
   if (dragged) {
@@ -112,12 +134,12 @@ function updateMap() {
     background(255, opacity.value());
     if (!playMode) {
       for (i in times) {
-        if (times[i] > startTime.value() && times[i] < endTime.value()) {
+        if (times[i] > startTime && times[i] < endTime) {
           if (accs[i] <= accuracy.value()) {
             const pix = testMap.latLngToPixel(latitudes[i], longitudes[i]);
             if (pix.x > 0 && pix.x < windowWidth && pix.y > 0 && pix.y < windowHeight) {
               if (heatOn) {
-                heat = map(data.locations[i].timestampMs, startTime.value(), endTime.value(), 0, 220);
+                heat = map(data.locations[i].timestampMs, startTime, endTime, 0, 220);
                 fill(heat, 70, (220 - heat), 255);
               } else {
                 fill(255, 0, 255, 255);
@@ -130,8 +152,8 @@ function updateMap() {
       }
     }
   }
-  var startFormatted = new Date(startTime.value());
-  var endFormatted = new Date(endTime.value());
+  var startFormatted = new Date(startTime);
+  var endFormatted = new Date(endTime);
   var startDate = new Date(startFormatted);
   var endDate = new Date(endFormatted);
 
@@ -173,7 +195,7 @@ function mouseDragged() {
 
 function mouseReleased() {
   dragged = false;
-  updateMap();
+  update();
 }
 
 function changeMode() {
@@ -181,7 +203,7 @@ function changeMode() {
     playMode = false;
   } else {
     startTimeIndex = 0;
-    while (times[startTimeIndex] < startTime.value()) {
+    while (times[startTimeIndex] < startTime) {
       startTimeIndex += 1;
     }
     timePoint = startTimeIndex;
@@ -201,8 +223,10 @@ function pauseSwitch() {
 }
 
 function draw() {
-  if (playMode) {
+  if (playMode && !lineMode) {
     drawPlay();
+  } else if (playMode && lineMode) {
+    drawPlayLine();
   }
 }
 
@@ -211,15 +235,15 @@ function drawPlay() {
   background(255, opacity.value());
   for (let x in timePoints) {
     dot = timePoints[x];
-    if (times[dot] > startTime.value() && times[dot] < endTime.value()) {
+    if (times[dot] > startTime && times[dot] < endTime) {
       if (accs[i] <= accuracy.value()) {
         const pix = testMap.latLngToPixel(latitudes[dot], longitudes[dot]);
         if (pix.x - prev[0] != 0 && pix.y - prev[1] != 0) {
-          if (heatOn) {
-            heat = map(x, 0, (timePoints.length - 1), 0, 220);
-            fill(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
+          heat = map(x, 0, (timePoints.length - 1), 0, 220);
+          if (x == timePoints.length - 1) {
+            fill(255, 255, 255, 255);
           } else {
-            fill(255, 0, 255, 255);
+            fill(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
           }
           ellipse(pix.x, pix.y, dotSize.value());
           noStroke();
@@ -236,6 +260,114 @@ function drawPlay() {
     timePoints.push(timePoint);
   }
 
+  var currentFormatted = new Date(times[timePoint]);
+  var currentDate = new Date(currentFormatted);
+
+  var currentResult = currentDate.toLocaleString('fi');
+  textSize(32);
+  fill(0, 0, 0, 120);
+  text(currentResult, 100, 30);
+}
+
+function lineSwitch() {
+  prev = [0, 0];
+  if (lineMode) {
+    lineMode = false;
+  } else {
+    lineMode = true;
+  }
+}
+
+function update() {
+  if (lineMode) {
+    updateMapLine();
+  } else {
+    updateMap();
+  }
+}
+
+function getDistance(x1, y1, x2, y2) {
+  let y = x2 - x1;
+  let x = y2 - y1;
+
+  return Math.sqrt(x * x + y * y);
+}
+
+function updateMapLine() {
+  if (playMode || !lineMode) {
+    return;
+  }
+  if (dragged) {
+    clear();
+    background(255, opacity.value());
+    return;
+  } else {
+    clear();
+    background(255, opacity.value());
+    if (!playMode) {
+      for (i in times) {
+        if (times[i] > startTime && times[i] < endTime) {
+          if (accs[i] <= accuracy.value()) {
+            const pix = testMap.latLngToPixel(latitudes[i], longitudes[i]);
+            if (pix.x > 0 && pix.x < windowWidth && pix.y > 0 && pix.y < windowHeight) {
+              heat = map(data.locations[i].timestampMs, startTime, endTime, 0, 220);
+              strokeWeight(dotSize.value());
+              stroke(heat, 70, (220 - heat), 255);
+              if (getDistance(pix.x, pix.y, prev[0], prev[1]) < tolerance.value()) {
+                line(pix.x, pix.y, prev[0], prev[1]);
+              }
+              prev = [pix.x, pix.y];
+            }
+          }
+        }
+      }
+    }
+  }
+  noStroke();
+  var startFormatted = new Date(startTime);
+  var endFormatted = new Date(endTime);
+  var startDate = new Date(startFormatted);
+  var endDate = new Date(endFormatted);
+
+  var startResult = startDate.toLocaleDateString('fi',);
+  var endResult = endDate.toLocaleDateString('fi',);
+  textSize(32);
+  fill(0, 0, 0, 120);
+  text(startResult + " - " + endResult, 100, 30);
+}
+
+function drawPlayLine() {
+  clear();
+  background(255, opacity.value());
+  for (let x in timePoints) {
+    dot = timePoints[x];
+    if (times[dot] > startTime && times[dot] < endTime) {
+      if (accs[i] <= accuracy.value()) {
+        const pix = testMap.latLngToPixel(latitudes[dot], longitudes[dot]);
+        if (pix.x - prev[0] != 0 && pix.y - prev[1] != 0) {
+          heat = map(x, 0, (timePoints.length - 1), 0, 220);
+          strokeWeight(dotSize.value());
+          if (x == timePoints.length - 1) {
+            stroke(255, 255, 255, 255);
+          } else {
+            stroke(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
+          }
+          if (getDistance(pix.x, pix.y, prev[0], prev[1]) < tolerance.value()) {
+            line(pix.x, pix.y, prev[0], prev[1]);
+          }
+          prev[0] = pix.x;
+          prev[1] = pix.y;
+        }
+      }
+    } else {
+      paused = true;
+    }
+  }
+  if (!paused) {
+    timePoint += 1;
+    timePoints.push(timePoint);
+  }
+  noStroke();
   var currentFormatted = new Date(times[timePoint]);
   var currentDate = new Date(currentFormatted);
 
