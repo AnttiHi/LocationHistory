@@ -38,6 +38,8 @@ var accuracy;
 var lineButton;
 var lineMode = false;
 var tolerance;
+var speed;
+var timeIterator = 0;
 
 const mappa = new Mappa('Leaflet');
 
@@ -74,23 +76,36 @@ function setup() {
     update();
   });
 
-  //frameRate(60);
   canvas = createCanvas(window.innerWidth, window.innerHeight);
   drawMap();
 
   firstTimestamp = data.locations[0].timestampMs;
   lastTimestamp = data.locations[data.locations.length - 1].timestampMs;
 
-  endTime = endMs;
-  dotSize = createSlider(1, 20, 2, 0.01);
-  opacity = createSlider(0, 255, 0, 1);
   startTime = startMs;
-  minFade = createSlider(0, 255, 255, 1);
-  accuracy = createSlider(20, 1000, 10000, 20);
+  endTime = endMs;
+
   play = createButton('PLAY');
   pause = createButton('PAUSE');
   lineButton = createButton('MODE');
+
+  createSpan('Dot size');
+  dotSize = createSlider(1, 20, 2, 0.01);
+
+  createSpan('Map opacity');
+  opacity = createSlider(0, 255, 0, 1);
+
+  createSpan('Accuracy threshold');
+  accuracy = createSlider(20, 1000, 10000, 20);
+
+  createSpan('Line threshold');
   tolerance = createSlider(1, 200, 200, 1);
+
+  createSpan('Animation speed');
+  speed = createSlider(0, 19, 19, 1);
+
+  createSpan('Fade');
+  minFade = createSlider(0, 255, 0, 1);
 
   testMap.onChange(update);
   dotSize.changed(update);
@@ -228,6 +243,7 @@ function draw() {
   } else if (playMode && lineMode) {
     drawPlayLine();
   }
+  timeIterator++;
 }
 
 function drawPlay() {
@@ -243,7 +259,7 @@ function drawPlay() {
           if (x == timePoints.length - 1) {
             fill(255, 255, 255, 255);
           } else {
-            fill(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
+            fill(heat, 70, (220 - heat), Math.max(heat, (255 - minFade.value())));
           }
           ellipse(pix.x, pix.y, dotSize.value());
           noStroke();
@@ -256,8 +272,11 @@ function drawPlay() {
     }
   }
   if (!paused) {
-    timePoint += 1;
-    timePoints.push(timePoint);
+    if (timeIterator % (20 - speed.value()) == 0) {
+      timePoint += 1;
+      timePoints.push(timePoint);
+    }
+    timeIterator++;
   }
 
   var currentFormatted = new Date(times[timePoint]);
@@ -350,7 +369,7 @@ function drawPlayLine() {
           if (x == timePoints.length - 1) {
             stroke(255, 255, 255, 255);
           } else {
-            stroke(heat, 70, (220 - heat), Math.max(heat, minFade.value()));
+            stroke(heat, 70, (220 - heat), Math.max(heat, (255 - minFade.value())));
           }
           if (getDistance(pix.x, pix.y, prev[0], prev[1]) < tolerance.value()) {
             line(pix.x, pix.y, prev[0], prev[1]);
@@ -364,8 +383,11 @@ function drawPlayLine() {
     }
   }
   if (!paused) {
-    timePoint += 1;
-    timePoints.push(timePoint);
+    if (timeIterator % (20 - speed.value()) == 0) {
+      timePoint += 1;
+      timePoints.push(timePoint);
+    }
+    timeIterator++;
   }
   noStroke();
   var currentFormatted = new Date(times[timePoint]);
