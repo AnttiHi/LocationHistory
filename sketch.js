@@ -20,7 +20,7 @@ var lastTimestamp;
 //https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png
 //https://tiles.stadiamaps.com/tiles/outdoors/{z}/{x}/{y}{r}.png
 //http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}
-var mapstyle = "https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}{r}.png";
+var mapstyle = "http://{s}.tile.osm.org/{z}/{x}/{y}.png";
 var dragged = false;
 var accuracy;
 var opacity;
