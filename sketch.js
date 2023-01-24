@@ -61,9 +61,24 @@ function setup() {
   var startMs = 0;
   var endMs = 0;
 
+  for (var i in data.locations) {
+    lat = data.locations[i].latitudeE7;
+    lat = lat.toString();
+    lat = lat.slice(0, 2) + "." + lat.slice(2, 8);
+    lon = data.locations[i].longitudeE7;
+    lon = lon.toString();
+    lon = lon.slice(0, 2) + "." + lon.slice(2, 8);
+    time = parseInt(data.locations[i].timestampMs);
+    acc = parseInt(data.locations[i].Accuracy);
+    latitudes.push(lat);
+    longitudes.push(lon);
+    times.push(time);
+    accs.push(acc);
+  }
+
   $('input[name="datetimes"]').daterangepicker({
-    startDate: moment().startOf('hour'),
-    endDate: moment().startOf('hour').add(32, 'hour'),
+    startDate: moment(times[times.length-1]).startOf('week'),
+    endDate: moment(times[times.length-1]),
     locale: {
       format: 'DD/MM/YY'
     }
@@ -113,27 +128,6 @@ function setup() {
   pause.mousePressed(pauseSwitch);
   accuracy.changed(update);
   lineButton.mousePressed(lineSwitch);
-
-  // sel = createSelect();
-  // sel.option('Street map');
-  // sel.option('Satellite');
-  // sel.changed(chooseMap);
-
-
-  for (var i in data.locations) {
-    lat = data.locations[i].latitudeE7;
-    lat = lat.toString();
-    lat = lat.slice(0, 2) + "." + lat.slice(2, 8);
-    lon = data.locations[i].longitudeE7;
-    lon = lon.toString();
-    lon = lon.slice(0, 2) + "." + lon.slice(2, 8);
-    time = parseInt(data.locations[i].timestampMs);
-    acc = parseInt(data.locations[i].Accuracy);
-    latitudes.push(lat);
-    longitudes.push(lon);
-    times.push(time);
-    accs.push(acc);
-  }
 }
 
 function updateMap() {
@@ -186,17 +180,6 @@ function inArray(array, item) {
     }
   }
   return false;
-}
-
-function chooseMap() {
-  if (sel.value() == 'Satellite') {
-    mapstyle = 'http://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
-    heatOn = false;
-  } else {
-    mapstyle = "http://{s}.tile.osm.org/{z}/{x}/{y}.png"
-    heatOn = true;
-    drawMap;
-  }
 }
 
 function drawMap() {
